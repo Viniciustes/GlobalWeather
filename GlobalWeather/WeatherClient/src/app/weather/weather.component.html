@@ -1,0 +1,24 @@
+<div class="container content" style="padding-left: 0px; padding-top: 10px">
+  <form [formGroup]="weatherForm">
+    <div formgroupname="searchGroup">
+      <div class="row">
+        <div class="col-md-3 form-group">
+          <input type="text" id="country" class="form-control" formcontrolname="country" placeholder="Country"
+            [ngbTypeahead]="searchCountry" [resultFormatter]="countryFormatter" [inputFormatter]="countryFormatter"
+            (focus)="focus$.next($event.target.value)" (click)="click$.next($event.target.value)"
+            #instanceCountry="ngbTypeahead" autocomplete="off" editable="false" [focusFirst]="false" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-3 form-group"><input class="form-control" formcontrolname="city" id="city"
+            placeholder="Location" type="text" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-3"><input class="btn btn-primary" type="button" value="Go" /></div>
+      </div>
+    </div>
+  </form>
+</div>
