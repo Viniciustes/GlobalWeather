@@ -1,4 +1,4 @@
-import { Country } from './country';
+import { Country } from 'src/app/shared/models/country';
 
 export interface City {
   Key: string;
@@ -6,3 +6,4 @@ export interface City {
   Type: string;
   Country: Country;
 }
+

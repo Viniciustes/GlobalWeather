@@ -1,15 +1,14 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { FormGroup, FormControl, FormBuilder, Validators } from '@angular/forms';
+import { NgbTypeahead } from '@ng-bootstrap/ng-bootstrap';
 import { Observable, Subject, merge } from 'rxjs';
 import { debounceTime, distinctUntilChanged, map, filter } from 'rxjs/operators';
-import { NgbTypeahead } from '@ng-bootstrap/ng-bootstrap';
-import { LocationService } from '../shared/services/location.service';
-//import { CurrentConditionsService } from '../shared/services/current-conditions.service';
-import { Country } from '../shared/models/country';
-import { City } from '../shared/models/city';
-//import { City } from '../shared/models/city';
-//import { CurrentConditions } from '../shared/models/current-conditions';
-//import { Weather } from '../shared/models/weather';
+import { LocationService } from 'src/app/shared/services/location.service';
+import { CurrentConditionsService } from 'src/app/shared/services/current-conditions.service';
+import { Country } from 'src/app/shared/models/country';
+import { City } from 'src/app/shared/models/city';
+import { CurrentConditions } from 'src/app/shared/models/current-conditions';
+import { Weather } from 'src/app/shared/models/weather';
 
 @Component({
   selector: 'app-weather',
@@ -21,7 +20,7 @@ export class WeatherComponent implements OnInit {
   private weatherForm: FormGroup;
   private countries: Array<Country> = [];
   private city: City;
-  //private weather: Weather;
+  private weather: Weather;
   private errorMessage: string;
 
   @ViewChild('instance')
@@ -31,8 +30,9 @@ export class WeatherComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private locationService: LocationService
-  ) { }
+    private locationService: LocationService,
+    private currentConditionService: CurrentConditionsService) {
+  }
 
   async ngOnInit() {
     this.weatherForm = this.buildForm();
@@ -53,6 +53,28 @@ export class WeatherComponent implements OnInit {
     });
   }
 
+  get cityControl(): FormControl {
+    return <FormControl>this.weatherForm.get('searchGroup.city');
+  }
+
+  get countryControl(): FormControl {
+    return <FormControl>this.weatherForm.get('searchGroup.country');
+  }
+
+  countryFormatter = (country: Country) => country.EnglishName;
+
+  searchCountry = (text$: Observable<string>) => {
+    const debouncedText$ = text$.pipe(debounceTime(200), distinctUntilChanged());
+    const clicksWithClosedPopup$ = this.click$.pipe(filter(() => !this.instanceCountry.isPopupOpen()));
+    const inputFocus$ = this.focus$;
+
+    return merge(debouncedText$, inputFocus$, clicksWithClosedPopup$).pipe(
+      map(term => (term === ''
+        ? this.countries
+        : this.countries.filter(v => v.EnglishName.toLowerCase().indexOf(term.toLowerCase()) > -1)).slice(0, 10))
+    );
+  }
+
   async getCountries() {
     const promise = new Promise((resolve, reject) => {
       this.locationService.getCountries()
@@ -63,6 +85,7 @@ export class WeatherComponent implements OnInit {
             resolve();
           },
           err => {
+            console.error(err);
             this.errorMessage = err;
             reject(err);
           }
@@ -89,8 +112,10 @@ export class WeatherComponent implements OnInit {
               this.city = cities[0];
               resolve();
             }
+
           },
           err => {
+            console.error(err);
             this.errorMessage = err;
             reject(err);
           }
@@ -108,25 +133,45 @@ export class WeatherComponent implements OnInit {
     }
   }
 
-  get cityControl(): FormControl {
-    return <FormControl>this.weatherForm.get('searchGroup.city');
+  async getCurrentConditions() {
+    if (!this.city)
+      return;
+    const promise = new Promise((resolve, reject) => {
+      this.currentConditionService.getCurrentConditions(this.city.Key)
+        .toPromise()
+        .then(
+          res => { // Success
+            if (res.length > 0) {
+              const data = res[0] as CurrentConditions;
+              this.weather = new Weather(data, this.city);
+              resolve();
+            } else {
+              this.errorMessage = "Weather is not available.";
+              reject(this.errorMessage);
+            }
+          },
+          err => {
+            console.error(err);
+            reject(err);
+          }
+        );
+    });
+    await promise;
   }
 
-get countryControl(): FormControl {
-    return <FormControl>this.weatherForm.get('searchGroup.country');
- }
+  async search() {
+    this.weather = null;
+    this.errorMessage = null;
+    const searchText = this.cityControl.value as string;
+    if (!this.city ||
+      this.city.EnglishName !== searchText ||
+      !this.city.Key ||
+      !this.city.Country ||
+      !this.city.Country.ID) {
+      await this.getCity();
+    }
 
-  countryFormatter = (country: Country) => country.EnglishName;
+    await this.getCurrentConditions();
 
-  searchCountry = (text$: Observable<string>) => {
-    const debouncedText$ = text$.pipe(debounceTime(200), distinctUntilChanged());
-    const clicksWithClosedPopup$ = this.click$.pipe(filter(() => !this.instanceCountry.isPopupOpen()));
-    const inputFocus$ = this.focus$;
-
-    return merge(debouncedText$, inputFocus$, clicksWithClosedPopup$).pipe(
-      map(term => (term === ''
-        ? this.countries
-        : this.countries.filter(v => v.EnglishName.toLowerCase().indexOf(term.toLowerCase()) > -1)).slice(0, 10))
-    );
   }
 }

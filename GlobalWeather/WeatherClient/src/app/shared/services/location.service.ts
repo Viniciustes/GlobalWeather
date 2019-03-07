@@ -1,11 +1,12 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Constants } from 'src/app/app.constants';
-import { Country } from '../../shared/models/country';
 import { catchError, map, tap } from 'rxjs/operators';
-import { ErrorHandleService } from './error-handle.service';
-import { City } from '../models/city';
+import { Constants } from 'src/app/app.constants';
+import { Country } from 'src/app/shared/models/country';
+import { City } from 'src/app/shared/models/city';
+import { ErrorHandleService } from 'src/app/shared/services/error-handle.service';
+
 
 @Injectable({
   providedIn: 'root'
@@ -45,6 +46,7 @@ export class LocationService {
               EnglishName: o.Country.EnglishName
             }
           }
+
         })),
         tap(_ => console.log('fetched cities')),
         catchError(this.errorHandleService.handleError('getCities', []))
